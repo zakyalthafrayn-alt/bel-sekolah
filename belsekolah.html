@@ -1,0 +1,681 @@
+from pathlib import Path
+
+html = r'''<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alarm Bel Sekolah</title>
+  <style>
+    :root{
+      --bg:#f4f7fb;
+      --card:#ffffff;
+      --text:#172033;
+      --muted:#6b7280;
+      --primary:#2563eb;
+      --primary-dark:#1d4ed8;
+      --danger:#dc2626;
+      --success:#16a34a;
+      --warning:#d97706;
+      --border:#dbe3ef;
+      --shadow:0 10px 30px rgba(15,23,42,.08);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+      background:linear-gradient(135deg,#eef4ff,#f8fbff 45%,#eefcf5);
+      color:var(--text);
+      min-height:100vh;
+    }
+    .container{
+      max-width:1180px;
+      margin:auto;
+      padding:24px;
+    }
+    header{
+      display:flex;
+      gap:16px;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:22px;
+      flex-wrap:wrap;
+    }
+    .title h1{margin:0 0 6px;font-size:clamp(26px,4vw,38px)}
+    .title p{margin:0;color:var(--muted)}
+    .clock{
+      background:#0f172a;
+      color:white;
+      padding:14px 18px;
+      border-radius:14px;
+      min-width:220px;
+      text-align:center;
+      box-shadow:var(--shadow);
+    }
+    .clock .time{font-size:28px;font-weight:800;letter-spacing:1px}
+    .clock .date{font-size:13px;opacity:.78;margin-top:4px}
+    .grid{
+      display:grid;
+      grid-template-columns:380px 1fr;
+      gap:20px;
+      align-items:start;
+    }
+    @media (max-width:900px){.grid{grid-template-columns:1fr}}
+    .card{
+      background:var(--card);
+      border:1px solid rgba(219,227,239,.9);
+      box-shadow:var(--shadow);
+      border-radius:var(--radius);
+      padding:20px;
+    }
+    .card h2{margin:0 0 16px;font-size:20px}
+    label{display:block;font-weight:700;font-size:14px;margin:14px 0 7px}
+    input,select,button{
+      font:inherit;
+    }
+    input[type="text"],input[type="time"],input[type="number"],select{
+      width:100%;
+      padding:11px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      outline:none;
+      background:white;
+    }
+    input:focus,select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+    .days{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:7px;
+    }
+    .day{
+      border:1px solid var(--border);
+      border-radius:9px;
+      padding:8px 4px;
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      font-size:13px;
+      background:#fff;
+    }
+    .day input{display:none}
+    .day:has(input:checked){
+      color:white;
+      background:var(--primary);
+      border-color:var(--primary);
+      font-weight:700;
+    }
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btn{
+      border:none;
+      border-radius:10px;
+      padding:10px 14px;
+      cursor:pointer;
+      font-weight:800;
+      transition:.15s ease;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:var(--primary);color:white}
+    .btn-primary:hover{background:var(--primary-dark)}
+    .btn-secondary{background:#e8eef8;color:#1e293b}
+    .btn-danger{background:#fee2e2;color:#991b1b}
+    .btn-success{background:#dcfce7;color:#166534}
+    .btn-warning{background:#ffedd5;color:#9a3412}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+    .status{
+      margin-bottom:16px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:7px;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:13px;
+      font-weight:800;
+    }
+    .badge.on{background:#dcfce7;color:#166534}
+    .badge.off{background:#fee2e2;color:#991b1b}
+    .dot{width:9px;height:9px;border-radius:50%;background:currentColor}
+    .schedule-list{display:grid;gap:10px}
+    .schedule{
+      border:1px solid var(--border);
+      border-radius:13px;
+      padding:14px;
+      display:grid;
+      grid-template-columns:88px 1fr auto;
+      gap:14px;
+      align-items:center;
+      background:#fff;
+    }
+    .schedule.disabled{opacity:.55;background:#f8fafc}
+    @media (max-width:650px){
+      .schedule{grid-template-columns:1fr}
+      .schedule-actions{justify-content:flex-start!important}
+    }
+    .sched-time{
+      font-size:24px;
+      font-weight:900;
+      color:#0f172a;
+    }
+    .sched-name{font-weight:800;margin-bottom:5px}
+    .sched-meta{font-size:13px;color:var(--muted);line-height:1.5}
+    .schedule-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+    .mini{padding:7px 9px;font-size:12px}
+    .empty{
+      padding:32px 12px;
+      text-align:center;
+      color:var(--muted);
+      border:2px dashed var(--border);
+      border-radius:12px;
+    }
+    .filebox{
+      border:1px dashed #aebbd0;
+      background:#f8fbff;
+      border-radius:12px;
+      padding:12px;
+    }
+    .filebox small{display:block;color:var(--muted);margin-top:6px}
+    input[type="file"]{width:100%}
+    .range-wrap{display:flex;align-items:center;gap:10px}
+    input[type="range"]{width:100%}
+    .range-value{min-width:44px;font-weight:800;text-align:right}
+    .notice{
+      margin-top:16px;
+      border-left:4px solid var(--warning);
+      background:#fff7ed;
+      padding:11px 13px;
+      border-radius:8px;
+      font-size:13px;
+      color:#7c2d12;
+      line-height:1.55;
+    }
+    .ringing{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.75);
+      display:none;
+      place-items:center;
+      z-index:9999;
+      padding:20px;
+      backdrop-filter:blur(3px);
+    }
+    .ringing.show{display:grid}
+    .ring-box{
+      width:min(500px,100%);
+      background:white;
+      border-radius:20px;
+      padding:28px;
+      text-align:center;
+      box-shadow:0 25px 80px rgba(0,0,0,.3);
+    }
+    .bell{font-size:64px;animation:ring .6s infinite alternate}
+    @keyframes ring{
+      from{transform:rotate(-14deg) scale(.96)}
+      to{transform:rotate(14deg) scale(1.04)}
+    }
+    .ring-box h2{font-size:28px;margin:10px 0 5px}
+    .ring-box p{color:var(--muted);margin:0 0 20px}
+    .footer{
+      text-align:center;
+      margin-top:18px;
+      color:var(--muted);
+      font-size:12px;
+    }
+    .top-controls{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title">
+      <h1>🔔 Alarm Bel Sekolah</h1>
+      <p>Atur jadwal bel dan gunakan suara bel sesuai keinginan.</p>
+    </div>
+    <div class="clock">
+      <div id="clockTime" class="time">00:00:00</div>
+      <div id="clockDate" class="date">-</div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2 id="formTitle">Tambah Jadwal Bel</h2>
+
+      <label for="name">Nama jadwal</label>
+      <input id="name" type="text" placeholder="Contoh: Masuk sekolah" />
+
+      <div class="row">
+        <div>
+          <label for="time">Jam dering</label>
+          <input id="time" type="time" />
+        </div>
+        <div>
+          <label for="duration">Durasi (detik)</label>
+          <input id="duration" type="number" min="1" max="600" value="10" />
+        </div>
+      </div>
+
+      <label>Hari aktif</label>
+      <div class="days" id="days">
+        <label class="day"><input type="checkbox" value="1" checked>Sen</label>
+        <label class="day"><input type="checkbox" value="2" checked>Sel</label>
+        <label class="day"><input type="checkbox" value="3" checked>Rab</label>
+        <label class="day"><input type="checkbox" value="4" checked>Kam</label>
+        <label class="day"><input type="checkbox" value="5" checked>Jum</label>
+        <label class="day"><input type="checkbox" value="6">Sab</label>
+        <label class="day"><input type="checkbox" value="0">Min</label>
+      </div>
+
+      <label for="sound">Suara bel</label>
+      <div class="filebox">
+        <input id="sound" type="file" accept="audio/*" />
+        <small id="soundInfo">Belum ada file suara dipilih. Jadwal baru dapat memakai suara yang diunggah.</small>
+      </div>
+
+      <label for="volume">Volume</label>
+      <div class="range-wrap">
+        <input id="volume" type="range" min="0" max="100" value="100" />
+        <div id="volumeValue" class="range-value">100%</div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="saveBtn">💾 Simpan Jadwal</button>
+        <button class="btn btn-secondary" id="testBtn">▶ Tes Suara</button>
+        <button class="btn btn-secondary" id="cancelBtn" style="display:none">Batal Edit</button>
+      </div>
+
+      <div class="notice">
+        <b>Penting:</b> agar bel otomatis berjalan, halaman ini harus tetap terbuka. Beberapa browser juga mewajibkan Anda mengklik halaman atau tombol terlebih dahulu sebelum audio boleh diputar otomatis.
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="status">
+        <h2 style="margin:0">Daftar Jadwal</h2>
+        <span id="systemBadge" class="badge on"><span class="dot"></span>Sistem Aktif</span>
+        <div class="top-controls">
+          <button class="btn btn-warning mini" id="toggleSystemBtn">Nonaktifkan Bel</button>
+          <button class="btn btn-danger mini" id="clearAllBtn">Hapus Semua</button>
+        </div>
+      </div>
+      <div id="scheduleList" class="schedule-list"></div>
+    </section>
+  </div>
+
+  <div class="footer">Alarm Bel Sekolah • Data tersimpan di browser perangkat ini</div>
+</div>
+
+<div id="ringing" class="ringing">
+  <div class="ring-box">
+    <div class="bell">🔔</div>
+    <h2 id="ringTitle">Bel Berbunyi</h2>
+    <p id="ringTime"></p>
+    <button class="btn btn-danger" id="stopRingBtn">⏹ Hentikan Bel</button>
+  </div>
+</div>
+
+<audio id="audio" preload="auto"></audio>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const dayNames = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+  const fullDayNames = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+
+  let schedules = JSON.parse(localStorage.getItem('schoolBellSchedules') || '[]');
+  let systemEnabled = JSON.parse(localStorage.getItem('schoolBellEnabled') ?? 'true');
+  let editingId = null;
+  let testTimer = null;
+  let ringTimer = null;
+  let lastTriggeredKey = '';
+  let currentObjectUrl = null;
+  let testObjectUrl = null;
+
+  const dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open('SchoolBellDB', 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('sounds')) {
+        db.createObjectStore('sounds');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+
+  async function saveSound(id, file) {
+    const db = await dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('sounds', 'readwrite');
+      tx.objectStore('sounds').put(file, id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function getSound(id) {
+    const db = await dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('sounds', 'readonly');
+      const req = tx.objectStore('sounds').get(id);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function deleteSound(id) {
+    const db = await dbPromise;
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('sounds', 'readwrite');
+      tx.objectStore('sounds').delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  function saveSchedules() {
+    localStorage.setItem('schoolBellSchedules', JSON.stringify(schedules));
+  }
+
+  function selectedDays() {
+    return [...document.querySelectorAll('#days input:checked')].map(x => Number(x.value));
+  }
+
+  function setSelectedDays(days) {
+    document.querySelectorAll('#days input').forEach(x => {
+      x.checked = days.includes(Number(x.value));
+    });
+  }
+
+  function escapeHtml(str='') {
+    return str.replace(/[&<>"']/g, m => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+    })[m]);
+  }
+
+  function formatDays(days) {
+    const weekdays = [1,2,3,4,5];
+    if (weekdays.every(d => days.includes(d)) && days.length === 5) return 'Senin–Jumat';
+    if (days.length === 7) return 'Setiap hari';
+    return days.map(d => dayNames[d]).join(', ');
+  }
+
+  function render() {
+    const list = $('scheduleList');
+    if (!schedules.length) {
+      list.innerHTML = '<div class="empty">Belum ada jadwal. Tambahkan jadwal bel dari panel sebelah kiri.</div>';
+    } else {
+      const sorted = [...schedules].sort((a,b) => a.time.localeCompare(b.time));
+      list.innerHTML = sorted.map(s => `
+        <div class="schedule ${s.enabled ? '' : 'disabled'}">
+          <div class="sched-time">${escapeHtml(s.time)}</div>
+          <div>
+            <div class="sched-name">${escapeHtml(s.name || 'Bel Sekolah')}</div>
+            <div class="sched-meta">
+              ${formatDays(s.days)} • ${s.duration} detik • Volume ${s.volume}%<br>
+              🔊 ${escapeHtml(s.soundName || 'Tidak ada suara')}
+            </div>
+          </div>
+          <div class="schedule-actions">
+            <button class="btn btn-success mini" onclick="window.testSchedule('${s.id}')">Tes</button>
+            <button class="btn btn-secondary mini" onclick="window.editSchedule('${s.id}')">Edit</button>
+            <button class="btn btn-warning mini" onclick="window.toggleSchedule('${s.id}')">${s.enabled ? 'Nonaktif' : 'Aktifkan'}</button>
+            <button class="btn btn-danger mini" onclick="window.deleteSchedule('${s.id}')">Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    $('systemBadge').className = 'badge ' + (systemEnabled ? 'on' : 'off');
+    $('systemBadge').innerHTML = `<span class="dot"></span>${systemEnabled ? 'Sistem Aktif' : 'Sistem Nonaktif'}`;
+    $('toggleSystemBtn').textContent = systemEnabled ? 'Nonaktifkan Bel' : 'Aktifkan Bel';
+  }
+
+  function resetForm() {
+    editingId = null;
+    $('formTitle').textContent = 'Tambah Jadwal Bel';
+    $('name').value = '';
+    $('time').value = '';
+    $('duration').value = 10;
+    $('sound').value = '';
+    $('soundInfo').textContent = 'Belum ada file suara dipilih. Jadwal baru dapat memakai suara yang diunggah.';
+    $('volume').value = 100;
+    $('volumeValue').textContent = '100%';
+    setSelectedDays([1,2,3,4,5]);
+    $('saveBtn').textContent = '💾 Simpan Jadwal';
+    $('cancelBtn').style.display = 'none';
+  }
+
+  $('volume').addEventListener('input', e => {
+    $('volumeValue').textContent = e.target.value + '%';
+  });
+
+  $('sound').addEventListener('change', e => {
+    const file = e.target.files[0];
+    $('soundInfo').textContent = file
+      ? `Dipilih: ${file.name}`
+      : (editingId ? 'Tidak mengganti suara lama.' : 'Belum ada file suara dipilih.');
+  });
+
+  $('saveBtn').addEventListener('click', async () => {
+    const name = $('name').value.trim() || 'Bel Sekolah';
+    const time = $('time').value;
+    const duration = Math.max(1, Math.min(600, Number($('duration').value || 10)));
+    const days = selectedDays();
+    const volume = Number($('volume').value);
+    const file = $('sound').files[0];
+
+    if (!time) return alert('Silakan pilih jam dering.');
+    if (!days.length) return alert('Pilih minimal satu hari.');
+    if (!editingId && !file) return alert('Silakan masukkan file suara untuk jadwal ini.');
+
+    if (editingId) {
+      const idx = schedules.findIndex(s => s.id === editingId);
+      if (idx < 0) return;
+      schedules[idx] = {...schedules[idx], name, time, duration, days, volume};
+      if (file) {
+        await saveSound(editingId, file);
+        schedules[idx].soundName = file.name;
+      }
+    } else {
+      const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+      if (file) await saveSound(id, file);
+      schedules.push({
+        id, name, time, duration, days, volume,
+        enabled:true,
+        soundName:file ? file.name : ''
+      });
+    }
+
+    saveSchedules();
+    resetForm();
+    render();
+  });
+
+  $('cancelBtn').addEventListener('click', resetForm);
+
+  window.editSchedule = id => {
+    const s = schedules.find(x => x.id === id);
+    if (!s) return;
+    editingId = id;
+    $('formTitle').textContent = 'Edit Jadwal Bel';
+    $('name').value = s.name;
+    $('time').value = s.time;
+    $('duration').value = s.duration;
+    $('volume').value = s.volume;
+    $('volumeValue').textContent = s.volume + '%';
+    $('sound').value = '';
+    $('soundInfo').textContent = `Suara saat ini: ${s.soundName || 'Tidak ada'}. Pilih file baru jika ingin mengganti.`;
+    setSelectedDays(s.days);
+    $('saveBtn').textContent = '💾 Simpan Perubahan';
+    $('cancelBtn').style.display = 'inline-block';
+    window.scrollTo({top:0, behavior:'smooth'});
+  };
+
+  window.deleteSchedule = async id => {
+    const s = schedules.find(x => x.id === id);
+    if (!s || !confirm(`Hapus jadwal "${s.name}"?`)) return;
+    schedules = schedules.filter(x => x.id !== id);
+    await deleteSound(id);
+    saveSchedules();
+    if (editingId === id) resetForm();
+    render();
+  };
+
+  window.toggleSchedule = id => {
+    const s = schedules.find(x => x.id === id);
+    if (!s) return;
+    s.enabled = !s.enabled;
+    saveSchedules();
+    render();
+  };
+
+  async function playSoundForSchedule(s, showOverlay=true) {
+    const blob = await getSound(s.id);
+    if (!blob) {
+      alert(`File suara untuk "${s.name}" tidak ditemukan. Silakan edit jadwal dan unggah suara lagi.`);
+      return;
+    }
+
+    stopAudio(false);
+
+    currentObjectUrl = URL.createObjectURL(blob);
+    const audio = $('audio');
+    audio.src = currentObjectUrl;
+    audio.volume = Math.max(0, Math.min(1, s.volume / 100));
+    audio.loop = true;
+
+    if (showOverlay) {
+      $('ringTitle').textContent = s.name;
+      $('ringTime').textContent = `Jadwal ${s.time} • ${formatDays(s.days)}`;
+      $('ringing').classList.add('show');
+    }
+
+    try {
+      await audio.play();
+      ringTimer = setTimeout(() => stopAudio(true), s.duration * 1000);
+    } catch (err) {
+      if (showOverlay) $('ringing').classList.remove('show');
+      alert('Browser memblokir pemutaran audio otomatis. Klik tombol Tes Suara sekali agar browser mengizinkan audio.');
+      console.error(err);
+    }
+  }
+
+  function stopAudio(hideOverlay=true) {
+    const audio = $('audio');
+    audio.pause();
+    audio.currentTime = 0;
+    audio.loop = false;
+    if (ringTimer) clearTimeout(ringTimer);
+    ringTimer = null;
+    if (hideOverlay) $('ringing').classList.remove('show');
+    if (currentObjectUrl) {
+      URL.revokeObjectURL(currentObjectUrl);
+      currentObjectUrl = null;
+    }
+  }
+
+  $('stopRingBtn').addEventListener('click', () => stopAudio(true));
+
+  window.testSchedule = async id => {
+    const s = schedules.find(x => x.id === id);
+    if (s) await playSoundForSchedule({...s, duration:Math.min(10, s.duration)}, true);
+  };
+
+  $('testBtn').addEventListener('click', async () => {
+    const file = $('sound').files[0];
+
+    if (file) {
+      if (testObjectUrl) URL.revokeObjectURL(testObjectUrl);
+      testObjectUrl = URL.createObjectURL(file);
+      const audio = $('audio');
+      stopAudio(false);
+      audio.src = testObjectUrl;
+      audio.volume = Number($('volume').value) / 100;
+      audio.loop = false;
+      try {
+        await audio.play();
+        if (testTimer) clearTimeout(testTimer);
+        testTimer = setTimeout(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        }, 10000);
+      } catch {
+        alert('Audio tidak dapat diputar. Coba format MP3/WAV/OGG.');
+      }
+      return;
+    }
+
+    if (editingId) {
+      const s = schedules.find(x => x.id === editingId);
+      if (s) await playSoundForSchedule({...s, duration:10}, false);
+      return;
+    }
+
+    alert('Pilih file suara terlebih dahulu.');
+  });
+
+  $('toggleSystemBtn').addEventListener('click', () => {
+    systemEnabled = !systemEnabled;
+    localStorage.setItem('schoolBellEnabled', JSON.stringify(systemEnabled));
+    if (!systemEnabled) stopAudio(true);
+    render();
+  });
+
+  $('clearAllBtn').addEventListener('click', async () => {
+    if (!schedules.length) return;
+    if (!confirm('Hapus semua jadwal dan semua suara tersimpan?')) return;
+    const ids = schedules.map(s => s.id);
+    for (const id of ids) await deleteSound(id);
+    schedules = [];
+    saveSchedules();
+    resetForm();
+    render();
+  });
+
+  function updateClockAndCheck() {
+    const now = new Date();
+    $('clockTime').textContent = now.toLocaleTimeString('id-ID', {hour12:false});
+    $('clockDate').textContent = now.toLocaleDateString('id-ID', {
+      weekday:'long', day:'2-digit', month:'long', year:'numeric'
+    });
+
+    if (!systemEnabled) return;
+
+    const hh = String(now.getHours()).padStart(2,'0');
+    const mm = String(now.getMinutes()).padStart(2,'0');
+    const currentTime = `${hh}:${mm}`;
+    const day = now.getDay();
+    const dateKey = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+
+    for (const s of schedules) {
+      if (!s.enabled || s.time !== currentTime || !s.days.includes(day)) continue;
+      const key = `${dateKey}-${s.id}-${currentTime}`;
+      if (lastTriggeredKey === key) continue;
+      lastTriggeredKey = key;
+      playSoundForSchedule(s, true);
+      break;
+    }
+  }
+
+  document.addEventListener('click', () => {
+    // Interaksi pertama membantu browser mengizinkan audio.
+  }, {once:true});
+
+  render();
+  updateClockAndCheck();
+  setInterval(updateClockAndCheck, 1000);
+})();
+</script>
+</body>
+</html>
+'''
+
+path = Path('/mnt/data/alarm_bel_sekolah.html')
+path.write_text(html, encoding='utf-8')
+print(f"File dibuat: {path}")
